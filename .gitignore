@@ -1,6 +1,10 @@
 # Prerequisites
 *.d
 
+# CSV files
+*.csv
+!dataset_test.csv
+
 # Compiled Object files
 *.slo
 *.lo
