@@ -1,22 +1,7 @@
 // Este código lê um CSV e cria uma cópia deste com os dados categóricos
 // trocados pelos seus respectivos ids além de um CSV para cada coluna
 // categórica no formato (id|nome).
-//
-// Funcionamento:
-//     1.(sequencial) lê o dataset e armazena em uma matriz de X linhas e 26
-//         colunas
-//     2.(MultiThread) distribui as threads para que elas:
-//         -> criem os arquivos coluna.csv
-//         -> leem a matriz, verificam se o valor lido está no arquivo (SE NÃO
-//             ESTIVER insere o valor no arquivo) e troca a string da matriz
-//             para o id
-//         -> esperam as outras threads
-//     3.(sequencial) escreve o arquivo final
-//
-// Recursos criados:
-//     var de nome das colunas
-//     dicionário com o valor das index da coluna dos dados categóricos
-//
+
 // Dataset link:
 //     https://drive.google.com/file/d/1wfk_0QTIZA-uZktkOpwMmqFDVVIi5O-l/view?usp=sharing
 //
@@ -184,8 +169,6 @@ void write_final_dataset(std::string line) {
       if (i != 0) {
         final_dataset << ",";
       }
-
-      // final_dataset << content;
 
       auto vec1 = category_indexes;
       auto raw_index = std::find(vec1.begin(), vec1.end(), i);
