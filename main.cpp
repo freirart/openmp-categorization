@@ -15,68 +15,120 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <vector>
+
+std::vector<std::vector<std::string>> categorical_info_per_line;
+
+std::fstream dataset_to_read;
+
+const int MAX_LINES_READ_PER_LOOP = 10000;
+bool concluded_reading_file = false;
 
 std::string final_dataset_name = "final_dataset.csv";
 // Dataset com os dados categóricos substituídos pelos seus respectivos ids
 std::ofstream final_dataset;
 
 // Nome das colunas categóricas
-std::vector<std::string> category_names{
+const static std::vector<std::string> category_names{
     "cdtup.csv",         "berco.csv",        "portoatracacao.csv",
     "mes.csv",           "tipooperacao.csv", "tiponavegacaoatracacao.csv",
     "terminal.csv",      "origem.csv",       "destino.csv",
     "naturezacarga.csv", "sentido.csv"};
 
 // Índices das colunas categóricas
-std::vector<int> category_indexes{1, 2, 3, 5, 6, 7, 8, 17, 18, 20, 23};
+const static std::vector<int> category_indexes{1, 2,  3,  5,  6, 7,
+                                               8, 17, 18, 20, 23};
 
 int categories_list_size = category_names.size();
 
 // Dicionário de cada coluna categórica
-std::map<std::string, std::vector<std::string>> categorical_dict;
+static std::map<std::string, std::vector<std::string>> categorical_dict;
 
 bool started_writing_final_dataset = false;
 
 void clean_existing_files();
 
-void update_categorical_dict(std::string line);
+void initialize_dict();
+
+void update_current_slice();
 
 void write_dict_files();
 
 void write_final_dataset(std::string line);
 
 int main(int argc, char* argv[]) {
-  std::string line, filename;
+  std::string filename;
 
   if (argc > 1) {
     auto start = std::chrono::high_resolution_clock::now();
 
     filename = argv[1];
 
-    std::fstream dataset_to_read(filename, std::ios::in);
+    dataset_to_read.open(filename, std::fstream::in);
 
     if (dataset_to_read.is_open()) {
       clean_existing_files();
 
-      while (getline(dataset_to_read, line)) {
-        update_categorical_dict(line);
+      initialize_dict();
+
+      while (!concluded_reading_file) {
+        update_current_slice();
+
+        int slice_size = categorical_info_per_line.size();
+        int categories_num = category_names.size();
+
+#pragma omp parallel
+        {
+          for (int i = 0; i < categories_num; i++) {
+            auto category_name = category_names[i];
+            std::vector<std::string> category_list;
+
+#pragma omp for nowait
+            for (int j = 0; j < slice_size; j++) {
+              auto categorical_info = categorical_info_per_line[j][i];
+              category_list.push_back(categorical_info);
+            }
+#pragma omp critical
+            {
+              categorical_dict[category_name].insert(
+                  categorical_dict[category_name].end(),
+                  std::make_move_iterator(category_list.begin()),
+                  std::make_move_iterator(category_list.end()));
+            }
+          }
+        }
+#pragma omp parallel
+        {
+          for (int i = 0; i < categories_num; i++) {
+            auto category_name = category_names[i];
+            auto v = categorical_dict[category_name];
+
+            std::set<std::string> s;
+            int size = v.size();
+
+#pragma omp nowait
+            for (int j = 0; j < size; j++) {
+              s.insert(v[j]);
+            }
+
+#pragma omp critical
+            categorical_dict[category_name].assign(s.begin(), s.end());
+          }
+        }
       }
 
       write_dict_files();
 
-      line.clear();
-      dataset_to_read.clear();
-      dataset_to_read.seekg(0, dataset_to_read.beg);
-      final_dataset.open(final_dataset_name);
+      // final_dataset.open(final_dataset_name);
 
-      while (getline(dataset_to_read, line)) {
-        write_final_dataset(line);
-      }
+      // while (getline(dataset_to_read, line)) {
+      //   write_final_dataset(line);
+      // }
 
       dataset_to_read.close();
-      final_dataset.close();
+      // final_dataset.close();
 
       auto end = std::chrono::high_resolution_clock::now();
       auto duration =
@@ -101,42 +153,6 @@ void clean_existing_files() {
 
   std::remove(final_dataset_name.c_str());
 };
-
-void update_categorical_dict(std::string line) {
-  std::string content;
-  std::stringstream line_stream(line);
-  std::vector<std::string> row;
-
-  int i = 0;
-
-  while (getline(line_stream, content, ',')) {
-    auto vec = category_indexes;
-
-    if (std::find(vec.begin(), vec.end(), i) != vec.end()) {
-      row.push_back(content);
-    }
-
-    i++;
-  }
-
-  for (int i = 0; i < categories_list_size; i++) {
-    auto category_name = category_names[i];
-    auto categorical_info = row[i];
-
-    if (categorical_dict.find(category_name) == categorical_dict.end()) {
-      std::vector<std::string> categorical_info_vector;
-      categorical_info_vector.push_back(categorical_info);
-
-      categorical_dict[category_name] = categorical_info_vector;
-    } else {
-      auto vec = categorical_dict[category_name];
-
-      if (std::find(vec.begin(), vec.end(), categorical_info) == vec.end()) {
-        categorical_dict[category_name].push_back(categorical_info);
-      }
-    }
-  }
-}
 
 void write_dict_files() {
   for (int i = 0; i < categories_list_size; i++) {
@@ -198,5 +214,48 @@ void write_final_dataset(std::string line) {
     std::cout << "Could not open provided file name: \"" << final_dataset_name
               << "\"." << std::endl;
     exit(1);
+  }
+}
+
+void initialize_dict() {
+  int c_size = category_names.size();
+
+  for (int i = 0; i < c_size; i++) {
+    auto category_name = category_names[i];
+    categorical_dict[category_name] = std::vector<std::string>();
+  }
+}
+
+void update_current_slice() {
+  categorical_info_per_line.clear();
+
+  if (!concluded_reading_file) {
+    std::string line;
+
+    for (int i = 0; i < MAX_LINES_READ_PER_LOOP; i++) {
+      if (getline(dataset_to_read, line)) {
+        std::stringstream line_stream(line);
+        std::string content;
+        std::vector<std::string> row;
+
+        int j = 0;
+
+        while (getline(line_stream, content, ',')) {
+          auto vec = category_indexes;
+
+          if (std::find(vec.begin(), vec.end(), j) != vec.end()) {
+            row.push_back(content);
+          }
+
+          j++;
+        }
+
+        categorical_info_per_line.push_back(row);
+        line.clear();
+      } else {
+        concluded_reading_file = true;
+        break;
+      }
+    }
   }
 }
