@@ -52,8 +52,6 @@ void clean_existing_files();
 
 void update_categorical_dict(std::string line);
 
-void dev_display_dict();
-
 void write_dict_files();
 
 int main(int argc, char* argv[]) {
@@ -70,8 +68,6 @@ int main(int argc, char* argv[]) {
       while (getline(dataset_to_read, line)) {
         update_categorical_dict(line);
       }
-
-      dev_display_dict();
 
       write_dict_files();
 
@@ -129,16 +125,6 @@ void update_categorical_dict(std::string line) {
       if (std::find(vec.begin(), vec.end(), categorical_info) == vec.end()) {
         categorical_dict[category_name].push_back(categorical_info);
       }
-    }
-  }
-}
-
-void dev_display_dict() {
-  for (auto&& category_info : categorical_dict) {
-    std::cout << "> Exibindo informações da coluna \"" << category_info.first
-              << "\":" << std::endl;
-    for (std::string categorical_info : category_info.second) {
-      std::cout << categorical_info << std::endl;
     }
   }
 }
