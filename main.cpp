@@ -43,6 +43,8 @@ std::vector<std::string> category_names{
 // Índices das colunas categóricas
 std::vector<int> category_indexes{1, 2, 3, 5, 6, 7, 8, 17, 18, 20, 23};
 
+int categories_list_size = category_names.size();
+
 // Dicionário de cada coluna categórica
 std::map<std::string, std::vector<std::string>> categorical_dict;
 
@@ -51,6 +53,8 @@ void clean_existing_files();
 void update_categorical_dict(std::string line);
 
 void dev_display_dict();
+
+void write_dict_files();
 
 int main(int argc, char* argv[]) {
   std::string line, content;
@@ -69,6 +73,8 @@ int main(int argc, char* argv[]) {
 
       dev_display_dict();
 
+      write_dict_files();
+
       dataset_to_read.close();
 
       auto end = std::chrono::high_resolution_clock::now();
@@ -86,7 +92,7 @@ int main(int argc, char* argv[]) {
 }
 
 void clean_existing_files() {
-  for (std::string category_name : category_names) {
+  for (auto category_name : category_names) {
     std::remove(category_name.c_str());
   }
 };
@@ -108,11 +114,9 @@ void update_categorical_dict(std::string line) {
     i++;
   }
 
-  int name_list_size = category_names.size();
-
-  for (int i = 0; i < name_list_size; i++) {
-    std::string category_name = category_names[i];
-    std::string categorical_info = row[i];
+  for (int i = 0; i < categories_list_size; i++) {
+    auto category_name = category_names[i];
+    auto categorical_info = row[i];
 
     if (categorical_dict.find(category_name) == categorical_dict.end()) {
       std::vector<std::string> categorical_info_vector;
@@ -136,5 +140,25 @@ void dev_display_dict() {
     for (std::string categorical_info : category_info.second) {
       std::cout << categorical_info << std::endl;
     }
+  }
+}
+
+void write_dict_files() {
+  for (int i = 0; i < categories_list_size; i++) {
+    auto category_name = category_names[i];
+    auto category_values = categorical_dict[category_name];
+    auto category_list_size = category_values.size();
+
+    std::ofstream my_file;
+
+    my_file.open(category_name);
+
+    my_file << "ID," << category_values[0] << std::endl;
+
+    for (int j = 1; j < category_list_size; j++) {
+      my_file << j << "," << category_values[j] << std::endl;
+    }
+
+    my_file.close();
   }
 }
