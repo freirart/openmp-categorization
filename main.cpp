@@ -33,6 +33,10 @@
 #include <sstream>
 #include <vector>
 
+std::string final_dataset_name = "final_dataset.csv";
+// Dataset com os dados categóricos substituídos pelos seus respectivos ids
+std::ofstream final_dataset;
+
 // Nome das colunas categóricas
 std::vector<std::string> category_names{
     "cdtup.csv",         "berco.csv",        "portoatracacao.csv",
@@ -48,19 +52,25 @@ int categories_list_size = category_names.size();
 // Dicionário de cada coluna categórica
 std::map<std::string, std::vector<std::string>> categorical_dict;
 
+bool started_writing_final_dataset = false;
+
 void clean_existing_files();
 
 void update_categorical_dict(std::string line);
 
 void write_dict_files();
 
+void write_final_dataset(std::string line);
+
 int main(int argc, char* argv[]) {
-  std::string line, content;
+  std::string line, filename;
 
   if (argc > 1) {
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::fstream dataset_to_read(argv[1], std::ios::in);
+    filename = argv[1];
+
+    std::fstream dataset_to_read(filename, std::ios::in);
 
     if (dataset_to_read.is_open()) {
       clean_existing_files();
@@ -71,7 +81,17 @@ int main(int argc, char* argv[]) {
 
       write_dict_files();
 
+      line.clear();
+      dataset_to_read.clear();
+      dataset_to_read.seekg(0, dataset_to_read.beg);
+      final_dataset.open(final_dataset_name);
+
+      while (getline(dataset_to_read, line)) {
+        write_final_dataset(line);
+      }
+
       dataset_to_read.close();
+      final_dataset.close();
 
       auto end = std::chrono::high_resolution_clock::now();
       auto duration =
@@ -79,7 +99,9 @@ int main(int argc, char* argv[]) {
 
       std::cout << "Duration: " << duration.count() << "ms." << std::endl;
     } else {
-      std::cout << "Could not open provided file name." << std::endl;
+      std::cout << "Could not open provided file name: \"" << filename << "\"."
+                << std::endl;
+      exit(1);
     }
   } else {
     std::cout << "Should execute along with the file name that will be read."
@@ -91,20 +113,22 @@ void clean_existing_files() {
   for (auto category_name : category_names) {
     std::remove(category_name.c_str());
   }
+
+  std::remove(final_dataset_name.c_str());
 };
 
 void update_categorical_dict(std::string line) {
-  std::string word;
+  std::string content;
   std::stringstream line_stream(line);
   std::vector<std::string> row;
 
   int i = 0;
 
-  while (getline(line_stream, word, ',')) {
+  while (getline(line_stream, content, ',')) {
     auto vec = category_indexes;
 
     if (std::find(vec.begin(), vec.end(), i) != vec.end()) {
-      row.push_back(word);
+      row.push_back(content);
     }
 
     i++;
@@ -146,5 +170,50 @@ void write_dict_files() {
     }
 
     my_file.close();
+  }
+}
+
+void write_final_dataset(std::string line) {
+  if (final_dataset.is_open()) {
+    std::string content;
+    std::stringstream line_stream(line);
+
+    int i = 0;
+
+    while (getline(line_stream, content, ',')) {
+      if (i != 0) {
+        final_dataset << ",";
+      }
+
+      // final_dataset << content;
+
+      auto vec1 = category_indexes;
+      auto raw_index = std::find(vec1.begin(), vec1.end(), i);
+
+      if (started_writing_final_dataset && (raw_index != vec1.end())) {
+        int index = std::distance(vec1.begin(), raw_index);
+        auto category_name = category_names[index];
+
+        auto vec2 = categorical_dict[category_name];
+        auto raw_index = std::find(vec2.begin(), vec2.end(), content);
+        int category_id = std::distance(vec2.begin(), raw_index);
+
+        final_dataset << category_id;
+      } else {
+        final_dataset << content;
+      }
+
+      i++;
+    }
+
+    final_dataset << std::endl;
+
+    if (!started_writing_final_dataset) {
+      started_writing_final_dataset = true;
+    }
+  } else {
+    std::cout << "Could not open provided file name: \"" << final_dataset_name
+              << "\"." << std::endl;
+    exit(1);
   }
 }
