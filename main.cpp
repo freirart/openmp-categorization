@@ -33,25 +33,18 @@
 #include <sstream>
 #include <vector>
 
-// Dicionário que mapeia os dados categóricos e seus respectivos índices
-std::map<std::string, int> category_index_map = {
-    {"cdtup.csv", 1},          {"berco.csv", 2},
-    {"portoatracacao.csv", 3}, {"mes.csv", 5},
-    {"tipooperacao.csv", 6},   {"tiponavegacaoatracacao.csv", 7},
-    {"terminal.csv", 8},       {"origem.csv", 17},
-    {"destino.csv", 18},       {"naturezacarga.csv", 20},
-    {"sentido.csv", 23}};
-
 // Nome das colunas categóricas
-std::vector<std::string> category_names;
+std::vector<std::string> category_names{
+    "cdtup.csv",         "berco.csv",        "portoatracacao.csv",
+    "mes.csv",           "tipooperacao.csv", "tiponavegacaoatracacao.csv",
+    "terminal.csv",      "origem.csv",       "destino.csv",
+    "naturezacarga.csv", "sentido.csv"};
 
 // Índices das colunas categóricas
-std::vector<int> category_indexes;
+std::vector<int> category_indexes{1, 2, 3, 5, 6, 7, 8, 17, 18, 20, 23};
 
 // Dicionário de cada coluna categórica
 std::map<std::string, std::vector<std::string>> categorical_dict;
-
-void initialize_category_info();
 
 void clean_existing_files();
 
@@ -68,8 +61,6 @@ int main(int argc, char* argv[]) {
     std::fstream dataset_to_read(argv[1], std::ios::in);
 
     if (dataset_to_read.is_open()) {
-      initialize_category_info();
-
       clean_existing_files();
 
       while (getline(dataset_to_read, line)) {
@@ -81,21 +72,16 @@ int main(int argc, char* argv[]) {
       dataset_to_read.close();
 
       auto end = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double, std::milli> ms_double = end - start;
-      std::cout << "Duration: " << ms_double.count() << "ms." << std::endl;
+      auto duration =
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+      std::cout << "Duration: " << duration.count() << "ms." << std::endl;
     } else {
       std::cout << "Could not open provided file name." << std::endl;
     }
   } else {
     std::cout << "Should execute along with the file name that will be read."
               << std::endl;
-  }
-}
-
-void initialize_category_info() {
-  for (auto&& category_info : category_index_map) {
-    category_names.push_back(category_info.first);
-    category_indexes.push_back(category_info.second);
   }
 }
 
@@ -124,7 +110,6 @@ void update_categorical_dict(std::string line) {
 
   int name_list_size = category_names.size();
 
-#pragma omp parallel for
   for (int i = 0; i < name_list_size; i++) {
     std::string category_name = category_names[i];
     std::string categorical_info = row[i];
