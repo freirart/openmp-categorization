@@ -18,14 +18,21 @@
 #include <sstream>
 #include <vector>
 
+// Variável que armazena as informações lidas do arquivo no laço atual
 std::vector<std::vector<std::string>> categorical_info_per_line;
 
+// Variável que apontará para o arquivo a ser lido
 std::fstream dataset_to_read;
 
+// Constante que indica o número de linhas lidas por laço
 const int MAX_LINES_READ_PER_LOOP = 10000;
+
+// Variável de controle que indica se a leitura do arquivo chegou ao final
 bool concluded_reading_file = false;
 
+// Nome do arquivo que conterá o dataset final
 std::string final_dataset_name = "final_dataset.csv";
+
 // Dataset com os dados categóricos substituídos pelos seus respectivos ids
 std::ofstream final_dataset;
 
@@ -40,18 +47,16 @@ const static std::vector<std::string> category_names{
 const static std::vector<int> category_indexes{1, 2,  3,  5,  6, 7,
                                                8, 17, 18, 20, 23};
 
-int categories_list_size = category_names.size();
-
 // Dicionário de cada coluna categórica
 static std::map<std::string, std::vector<std::string>> categorical_dict;
-
-bool started_writing_final_dataset = false;
 
 void clean_existing_files();
 
 void initialize_dict();
 
 void update_current_slice();
+
+void update_categorical_dict();
 
 void write_dict_files();
 
@@ -75,38 +80,7 @@ int main(int argc, char* argv[]) {
       while (!concluded_reading_file) {
         update_current_slice();
 
-        int slice_size = categorical_info_per_line.size();
-        int categories_num = category_names.size();
-
-#pragma omp parallel
-        {
-          for (int i = 0; i < categories_num; i++) {
-            auto category_name = category_names[i];
-            std::vector<std::string> category_list;
-
-#pragma omp for nowait
-            for (int j = 0; j < slice_size; j++) {
-              auto categorical_info = categorical_info_per_line[j][i];
-              category_list.push_back(categorical_info);
-            }
-#pragma omp critical
-            {
-              categorical_dict[category_name].insert(
-                  categorical_dict[category_name].end(),
-                  std::make_move_iterator(category_list.begin()),
-                  std::make_move_iterator(category_list.end()));
-            }
-          }
-        }
-
-        for (std::string category_name : category_names) {
-          std::sort(categorical_dict[category_name].begin(),
-                    categorical_dict[category_name].end());
-          categorical_dict[category_name].erase(
-              std::unique(categorical_dict[category_name].begin(),
-                          categorical_dict[category_name].end()),
-              categorical_dict[category_name].end());
-        }
+        update_categorical_dict();
       }
 
       write_dict_files();
@@ -184,7 +158,7 @@ void write_final_dataset(std::string line) {
       auto vec1 = category_indexes;
       auto raw_index = std::find(vec1.begin(), vec1.end(), i);
 
-      if (started_writing_final_dataset && (raw_index != vec1.end())) {
+      if (raw_index != vec1.end()) {
         int index = std::distance(vec1.begin(), raw_index);
         auto category_name = category_names[index];
 
@@ -201,10 +175,6 @@ void write_final_dataset(std::string line) {
     }
 
     final_dataset << std::endl;
-
-    if (!started_writing_final_dataset) {
-      started_writing_final_dataset = true;
-    }
   } else {
     std::cout << "Could not open provided file name: \"" << final_dataset_name
               << "\"." << std::endl;
@@ -252,5 +222,40 @@ void update_current_slice() {
         break;
       }
     }
+  }
+}
+
+void update_categorical_dict() {
+  int slice_size = categorical_info_per_line.size();
+  int categories_num = category_names.size();
+
+#pragma omp parallel
+  {
+    for (int i = 0; i < categories_num; i++) {
+      auto category_name = category_names[i];
+      std::vector<std::string> category_list;
+
+#pragma omp for nowait
+      for (int j = 0; j < slice_size; j++) {
+        auto categorical_info = categorical_info_per_line[j][i];
+        category_list.push_back(categorical_info);
+      }
+#pragma omp critical
+      {
+        categorical_dict[category_name].insert(
+            categorical_dict[category_name].end(),
+            std::make_move_iterator(category_list.begin()),
+            std::make_move_iterator(category_list.end()));
+      }
+    }
+  }
+
+  for (std::string category_name : category_names) {
+    std::sort(categorical_dict[category_name].begin(),
+              categorical_dict[category_name].end());
+    categorical_dict[category_name].erase(
+        std::unique(categorical_dict[category_name].begin(),
+                    categorical_dict[category_name].end()),
+        categorical_dict[category_name].end());
   }
 }
