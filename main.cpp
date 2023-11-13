@@ -15,7 +15,6 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <set>
 #include <sstream>
 #include <vector>
 
@@ -99,23 +98,14 @@ int main(int argc, char* argv[]) {
             }
           }
         }
-#pragma omp parallel
-        {
-          for (int i = 0; i < categories_num; i++) {
-            auto category_name = category_names[i];
-            auto v = categorical_dict[category_name];
 
-            std::set<std::string> s;
-            int size = v.size();
-
-#pragma omp nowait
-            for (int j = 0; j < size; j++) {
-              s.insert(v[j]);
-            }
-
-#pragma omp critical
-            categorical_dict[category_name].assign(s.begin(), s.end());
-          }
+        for (std::string category_name : category_names) {
+          std::sort(categorical_dict[category_name].begin(),
+                    categorical_dict[category_name].end());
+          categorical_dict[category_name].erase(
+              std::unique(categorical_dict[category_name].begin(),
+                          categorical_dict[category_name].end()),
+              categorical_dict[category_name].end());
         }
       }
 
@@ -155,22 +145,27 @@ void clean_existing_files() {
 };
 
 void write_dict_files() {
-  for (int i = 0; i < categories_list_size; i++) {
-    auto category_name = category_names[i];
-    auto category_values = categorical_dict[category_name];
-    auto category_list_size = category_values.size();
+  for (auto&& category_info : categorical_dict) {
+    auto category_file_name = category_info.first;
+    auto category_values = category_info.second;
 
-    std::ofstream my_file;
+    std::fstream category_file;
 
-    my_file.open(category_name);
+    category_file.open(category_file_name, std::fstream::app);
 
-    my_file << "ID," << category_values[0] << std::endl;
+    std::string category_name =
+        category_file_name.substr(0, category_file_name.size() - 4);
 
-    for (int j = 1; j < category_list_size; j++) {
-      my_file << j << "," << category_values[j] << std::endl;
+    category_file << "ID," << category_name << std::endl;
+
+    int category_id = 1;
+
+    for (std::string categorical_info : category_values) {
+      if (categorical_info != category_name) {
+        category_file << category_id << "," << categorical_info << std::endl;
+        category_id++;
+      }
     }
-
-    my_file.close();
   }
 }
 
