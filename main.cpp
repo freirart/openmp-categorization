@@ -1,9 +1,9 @@
-// Este código lê um CSV e cria uma cópia deste com os dados categóricos
-// trocados pelos seus respectivos ids além de um CSV para cada coluna
-// categórica no formato (id|nome).
+// Este código lê um arquivo CSV e cria uma cópia deste arquivo com os dados
+// categóricos trocados pelos seus respectivos ids além de um CSV para cada
+// coluna categórica no formato (id|nome).
 
 // Dataset link:
-//     https://drive.google.com/file/d/1wfk_0QTIZA-uZktkOpwMmqFDVVIi5O-l/view?usp=sharing
+// https://drive.google.com/file/d/1wfk_0QTIZA-uZktkOpwMmqFDVVIi5O-l/view?usp=sharing
 //
 
 #include <omp.h>
@@ -85,14 +85,17 @@ int main(int argc, char* argv[]) {
 
       write_dict_files();
 
-      // final_dataset.open(final_dataset_name);
-
-      // while (getline(dataset_to_read, line)) {
-      //   write_final_dataset(line);
-      // }
+      // TODO: criar função que cria o arquivo final
+      //       0. seekg(0) e clear para começar a ler o arquivo novamente
+      //       1. lê o arquivo de 10000 em 10000 e o coloca num vetor (criar um
+      //       próprio para isso)
+      //       2. processa o conteúdo de coluna em coluna e escreve no arquivo
+      //       final
+      //          a. se for uma coluna categórica, o ID daquele valor
+      //          b. se não for, o conteúdo na íntegra
+      //       3. fecha o arquivo no final
 
       dataset_to_read.close();
-      // final_dataset.close();
 
       auto end = std::chrono::high_resolution_clock::now();
       auto duration =
