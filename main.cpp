@@ -117,10 +117,7 @@ void clean_existing_files() {
 }
 
 void initialize_dict() {
-  int c_size = category_names.size();
-
-  for (int i = 0; i < c_size; i++) {
-    auto category_name = category_names[i];
+  for (auto category_name : category_names) {
     categorical_dict[category_name] = std::vector<std::string>();
   }
 }
