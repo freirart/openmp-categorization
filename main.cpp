@@ -36,6 +36,12 @@ std::string final_dataset_name = "final_dataset.csv";
 // Dataset com os dados categóricos substituídos pelos seus respectivos ids
 std::ofstream final_dataset;
 
+// Vetor que armazena o conteúdo do dataset final para manipulação
+std::vector<std::vector<std::string>> final_dataset_vector;
+
+// Número de colunas do arquivo lido (0 -> 25 = 26)
+int NUM_OF_COLS = 25;
+
 // Nome das colunas categóricas
 const static std::vector<std::string> category_names{
     "cdtup.csv",         "berco.csv",        "portoatracacao.csv",
@@ -60,7 +66,7 @@ void update_categorical_dict();
 
 void write_dict_files();
 
-void write_final_dataset(std::string line);
+void write_final_dataset();
 
 int main(int argc, char* argv[]) {
   std::string filename;
@@ -83,17 +89,9 @@ int main(int argc, char* argv[]) {
         update_categorical_dict();
       }
 
-      write_dict_files();
+      write_final_dataset();
 
-      // TODO: criar função que cria o arquivo final
-      //       0. seekg(0) e clear para começar a ler o arquivo novamente
-      //       1. lê o arquivo de 10000 em 10000 e o coloca num vetor (criar um
-      //       próprio para isso)
-      //       2. processa o conteúdo de coluna em coluna e escreve no arquivo
-      //       final
-      //          a. se for uma coluna categórica, o ID daquele valor
-      //          b. se não for, o conteúdo na íntegra
-      //       3. fecha o arquivo no final
+      // write_dict_files();
 
       dataset_to_read.close();
 
@@ -146,38 +144,74 @@ void write_dict_files() {
   }
 }
 
-void write_final_dataset(std::string line) {
+void write_final_dataset() {
+  dataset_to_read.clear();
+  dataset_to_read.seekg(0, dataset_to_read.beg);
+  concluded_reading_file = false;
+
+  final_dataset.open(final_dataset_name);
+
   if (final_dataset.is_open()) {
-    std::string content;
-    std::stringstream line_stream(line);
+    std::string line;
 
-    int i = 0;
+    printf("> Vou ler o arquivo!\n");
 
-    while (getline(line_stream, content, ',')) {
-      if (i != 0) {
-        final_dataset << ",";
+    while (getline(dataset_to_read, line)) {
+      std::string content;
+      std::stringstream line_stream(line);
+      std::vector<std::string> row;
+
+      while (getline(line_stream, content, ',')) {
+        row.push_back(content);
       }
 
-      auto vec1 = category_indexes;
-      auto raw_index = std::find(vec1.begin(), vec1.end(), i);
-
-      if (raw_index != vec1.end()) {
-        int index = std::distance(vec1.begin(), raw_index);
-        auto category_name = category_names[index];
-
-        auto vec2 = categorical_dict[category_name];
-        auto raw_index = std::find(vec2.begin(), vec2.end(), content);
-        int category_id = std::distance(vec2.begin(), raw_index);
-
-        final_dataset << category_id;
-      } else {
-        final_dataset << content;
-      }
-
-      i++;
+      final_dataset_vector.push_back(row);
     }
 
-    final_dataset << std::endl;
+    printf("> Terminei de ler o arquivo!\n");
+    printf("> Vou começar a processar o arquivo!\n");
+
+    int vec_size = final_dataset_vector.size();
+#pragma omp parallel for
+    for (int j = 0; j < NUM_OF_COLS; j++) {
+      auto vec1 = category_indexes;
+      auto raw_index = std::find(vec1.begin(), vec1.end(), j);
+      bool is_categorical_col = raw_index != vec1.end();
+
+      if (is_categorical_col) {
+        for (int i = 1; i < vec_size; i++) {
+          auto content = final_dataset_vector[i][j];
+
+          int index = std::distance(vec1.begin(), raw_index);
+          auto category_name = category_names[index];
+
+          auto vec2 = categorical_dict[category_name];
+          auto raw_index_2 = std::find(vec2.begin(), vec2.end(), content);
+
+          int category_id = std::distance(vec2.begin(), raw_index_2) + 1;
+          final_dataset_vector[i][j] = std::to_string(category_id);
+        }
+      }
+    }
+
+    printf("> Terminei de processar o arquivo!\n");
+    printf("> Vou começar a escrever o arquivo!\n");
+
+    for (int i = 0; i < vec_size; i++) {
+      for (int j = 0; j < NUM_OF_COLS; j++) {
+        if (j != 0) {
+          final_dataset << ",";
+        }
+
+        final_dataset << final_dataset_vector[i][j];
+      }
+
+      final_dataset << std::endl;
+    }
+
+    printf("> Terminei de escrever o arquivo!\n");
+
+    final_dataset.close();
   } else {
     std::cout << "Could not open provided file name: \"" << final_dataset_name
               << "\"." << std::endl;
