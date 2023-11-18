@@ -36,12 +36,6 @@ std::string final_dataset_name = "final_dataset.csv";
 // Dataset com os dados categóricos substituídos pelos seus respectivos ids
 std::ofstream final_dataset;
 
-// Vetor que armazena o conteúdo do dataset final para manipulação
-std::vector<std::vector<std::string>> final_dataset_vector;
-
-// Número de colunas do arquivo lido (0 -> 25 = 26)
-int NUM_OF_COLS = 25;
-
 // Nome das colunas categóricas
 const static std::vector<std::string> category_names{
     "cdtup.csv",         "berco.csv",        "portoatracacao.csv",
@@ -56,7 +50,7 @@ const static std::vector<int> category_indexes{1, 2,  3,  5,  6, 7,
 // Dicionário de cada coluna categórica
 static std::map<std::string, std::vector<std::string>> categorical_dict;
 
-std::map<std::string, int> categorical_info_map;
+std::map<std::string, std::string> categorical_info_map;
 
 void clean_existing_files();
 
@@ -139,7 +133,7 @@ void write_dict_files() {
 
     for (std::string categorical_info : category_values) {
       if (categorical_info != category_name) {
-        categorical_info_map[categorical_info] = category_id;
+        categorical_info_map[categorical_info] = std::to_string(category_id);
         category_file << category_id << "," << categorical_info << std::endl;
         category_id++;
       }
@@ -155,59 +149,35 @@ void write_final_dataset() {
   final_dataset.open(final_dataset_name);
 
   if (final_dataset.is_open()) {
-    int k = 1;
+    int i = 0;
 
-    while (!concluded_reading_file) {
-      final_dataset_vector.clear();
+    std::string line;
 
-      printf("%d) Lendo o arquivo...\n", k);
+    while (getline(dataset_to_read, line)) {
+      std::string raw_content;
+      std::stringstream line_stream(line);
 
-      for (int i = 0; i < MAX_LINES_READ_PER_LOOP; i++) {
-        std::string line;
+      int j = 0;
 
-        if (getline(dataset_to_read, line)) {
-          std::string content;
-          std::stringstream line_stream(line);
-          std::vector<std::string> row;
-
-          while (getline(line_stream, content, ',')) {
-            row.push_back(content);
-          }
-
-          final_dataset_vector.push_back(row);
-        } else {
-          concluded_reading_file = true;
-          break;
-        }
-      }
-
-      int vec_size = final_dataset_vector.size();
-
-      printf("%d) Escrevendo o arquivo...\n", k);
-
-      for (int i = 0; i < vec_size; i++) {
-        for (int j = 0; j < NUM_OF_COLS; j++) {
-          if (j != 0) {
-            final_dataset << ",";
-          }
-
-          auto raw_content = final_dataset_vector[i][j];
-
-          std::string content =
-              categorical_info_map.count(raw_content) > 0
-                  ? std::to_string(categorical_info_map[raw_content])
-                  : raw_content;
-
-          final_dataset << content;
+      while (getline(line_stream, raw_content, ',')) {
+        if (j != 0) {
+          final_dataset << ",";
         }
 
-        final_dataset << std::endl;
+        std::string content =
+            i > 0 && categorical_info_map.count(raw_content) > 0
+                ? categorical_info_map[raw_content]
+                : raw_content;
+
+        final_dataset << content;
+
+        j++;
       }
 
-      k++;
+      final_dataset << std::endl;
+
+      i++;
     }
-
-    printf("> Terminei de escrever o arquivo! Loops: %d\n", k - 1);
 
     final_dataset.close();
   } else {
