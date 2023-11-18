@@ -56,6 +56,8 @@ const static std::vector<int> category_indexes{1, 2,  3,  5,  6, 7,
 // Dicionário de cada coluna categórica
 static std::map<std::string, std::vector<std::string>> categorical_dict;
 
+std::map<std::string, int> categorical_info_map;
+
 void clean_existing_files();
 
 void initialize_dict();
@@ -89,9 +91,9 @@ int main(int argc, char* argv[]) {
         update_categorical_dict();
       }
 
-      write_final_dataset();
+      write_dict_files();
 
-      // write_dict_files();
+      write_final_dataset();
 
       dataset_to_read.close();
 
@@ -137,6 +139,7 @@ void write_dict_files() {
 
     for (std::string categorical_info : category_values) {
       if (categorical_info != category_name) {
+        categorical_info_map[categorical_info] = category_id;
         category_file << category_id << "," << categorical_info << std::endl;
         category_id++;
       }
@@ -152,10 +155,12 @@ void write_final_dataset() {
   final_dataset.open(final_dataset_name);
 
   if (final_dataset.is_open()) {
+    int k = 1;
+
     while (!concluded_reading_file) {
       final_dataset_vector.clear();
 
-      printf("Vou começar a ler o arquivo!\n");
+      printf("%d) Lendo o arquivo...\n", k);
 
       for (int i = 0; i < MAX_LINES_READ_PER_LOOP; i++) {
         std::string line;
@@ -176,32 +181,9 @@ void write_final_dataset() {
         }
       }
 
-      printf("> Vou começar a processar o arquivo!\n");
-
       int vec_size = final_dataset_vector.size();
-#pragma omp parallel for
-      for (int j = 0; j < NUM_OF_COLS; j++) {
-        auto vec1 = category_indexes;
-        auto raw_index = std::find(vec1.begin(), vec1.end(), j);
-        bool is_categorical_col = raw_index != vec1.end();
 
-        if (is_categorical_col) {
-          for (int i = 1; i < vec_size; i++) {
-            auto content = final_dataset_vector[i][j];
-
-            int index = std::distance(vec1.begin(), raw_index);
-            auto category_name = category_names[index];
-
-            auto vec2 = categorical_dict[category_name];
-            auto raw_index_2 = std::find(vec2.begin(), vec2.end(), content);
-
-            int category_id = std::distance(vec2.begin(), raw_index_2) + 1;
-            final_dataset_vector[i][j] = std::to_string(category_id);
-          }
-        }
-      }
-
-      printf("> Vou começar a escrever o arquivo!\n");
+      printf("%d) Escrevendo o arquivo...\n", k);
 
       for (int i = 0; i < vec_size; i++) {
         for (int j = 0; j < NUM_OF_COLS; j++) {
@@ -209,14 +191,23 @@ void write_final_dataset() {
             final_dataset << ",";
           }
 
-          final_dataset << final_dataset_vector[i][j];
+          auto raw_content = final_dataset_vector[i][j];
+
+          std::string content =
+              categorical_info_map.count(raw_content) > 0
+                  ? std::to_string(categorical_info_map[raw_content])
+                  : raw_content;
+
+          final_dataset << content;
         }
 
         final_dataset << std::endl;
       }
+
+      k++;
     }
 
-    printf("> Terminei de escrever o arquivo!\n");
+    printf("> Terminei de escrever o arquivo! Loops: %d\n", k - 1);
 
     final_dataset.close();
   } else {
