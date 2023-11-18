@@ -25,7 +25,7 @@ std::vector<std::vector<std::string>> categorical_info_per_line;
 std::fstream dataset_to_read;
 
 // Constante que indica o número de linhas lidas por laço
-const int MAX_LINES_READ_PER_LOOP = 10000;
+int MAX_LINES_READ_PER_LOOP = 10000;
 
 // Variável de controle que indica se a leitura do arquivo chegou ao final
 bool concluded_reading_file = false;
@@ -37,18 +37,17 @@ std::string final_dataset_name = "final_dataset.csv";
 std::ofstream final_dataset;
 
 // Nome das colunas categóricas
-const static std::vector<std::string> category_names{
+std::vector<std::string> category_names{
     "cdtup.csv",         "berco.csv",        "portoatracacao.csv",
     "mes.csv",           "tipooperacao.csv", "tiponavegacaoatracacao.csv",
     "terminal.csv",      "origem.csv",       "destino.csv",
     "naturezacarga.csv", "sentido.csv"};
 
 // Índices das colunas categóricas
-const static std::vector<int> category_indexes{1, 2,  3,  5,  6, 7,
-                                               8, 17, 18, 20, 23};
+std::vector<int> category_indexes{1, 2, 3, 5, 6, 7, 8, 17, 18, 20, 23};
 
 // Dicionário de cada coluna categórica
-static std::map<std::string, std::vector<std::string>> categorical_dict;
+std::map<std::string, std::vector<std::string>> categorical_dict;
 
 std::map<std::string, std::string> categorical_info_map;
 
@@ -105,6 +104,8 @@ int main(int argc, char* argv[]) {
     std::cout << "Should execute along with the file name that will be read."
               << std::endl;
   }
+
+  return 0;
 }
 
 void clean_existing_files() {
@@ -113,78 +114,6 @@ void clean_existing_files() {
   }
 
   std::remove(final_dataset_name.c_str());
-};
-
-void write_dict_files() {
-  for (auto&& category_info : categorical_dict) {
-    auto category_file_name = category_info.first;
-    auto category_values = category_info.second;
-
-    std::fstream category_file;
-
-    category_file.open(category_file_name, std::fstream::app);
-
-    std::string category_name =
-        category_file_name.substr(0, category_file_name.size() - 4);
-
-    category_file << "ID," << category_name << std::endl;
-
-    int category_id = 1;
-
-    for (std::string categorical_info : category_values) {
-      if (categorical_info != category_name) {
-        categorical_info_map[categorical_info] = std::to_string(category_id);
-        category_file << category_id << "," << categorical_info << std::endl;
-        category_id++;
-      }
-    }
-  }
-}
-
-void write_final_dataset() {
-  dataset_to_read.clear();
-  dataset_to_read.seekg(0, dataset_to_read.beg);
-  concluded_reading_file = false;
-
-  final_dataset.open(final_dataset_name);
-
-  if (final_dataset.is_open()) {
-    int i = 0;
-
-    std::string line;
-
-    while (getline(dataset_to_read, line)) {
-      std::string raw_content;
-      std::stringstream line_stream(line);
-
-      int j = 0;
-
-      while (getline(line_stream, raw_content, ',')) {
-        if (j != 0) {
-          final_dataset << ",";
-        }
-
-        std::string content =
-            i > 0 && categorical_info_map.count(raw_content) > 0
-                ? categorical_info_map[raw_content]
-                : raw_content;
-
-        final_dataset << content;
-
-        j++;
-      }
-
-      final_dataset << std::endl;
-
-      i++;
-    }
-
-    final_dataset.close();
-  } else {
-    std::cout << "Could not open provided file name: \"" << final_dataset_name
-              << "\"." << std::endl;
-    exit(1);
-  }
 }
 
 void initialize_dict() {
@@ -262,5 +191,77 @@ void update_categorical_dict() {
         std::unique(categorical_dict[category_name].begin(),
                     categorical_dict[category_name].end()),
         categorical_dict[category_name].end());
+  }
+}
+
+void write_dict_files() {
+  for (auto&& category_info : categorical_dict) {
+    auto category_file_name = category_info.first;
+    auto category_values = category_info.second;
+
+    std::fstream category_file;
+
+    category_file.open(category_file_name, std::fstream::app);
+
+    std::string category_name =
+        category_file_name.substr(0, category_file_name.size() - 4);
+
+    category_file << "ID," << category_name << std::endl;
+
+    int category_id = 1;
+
+    for (std::string categorical_info : category_values) {
+      if (categorical_info != category_name) {
+        categorical_info_map[categorical_info] = std::to_string(category_id);
+        category_file << category_id << "," << categorical_info << std::endl;
+        category_id++;
+      }
+    }
+  }
+}
+
+void write_final_dataset() {
+  dataset_to_read.clear();
+  dataset_to_read.seekg(0, dataset_to_read.beg);
+  concluded_reading_file = false;
+
+  final_dataset.open(final_dataset_name);
+
+  if (final_dataset.is_open()) {
+    int i = 0;
+
+    std::string line;
+
+    while (getline(dataset_to_read, line)) {
+      std::string raw_content;
+      std::stringstream line_stream(line);
+
+      int j = 0;
+
+      while (getline(line_stream, raw_content, ',')) {
+        if (j != 0) {
+          final_dataset << ",";
+        }
+
+        std::string content =
+            i > 0 && categorical_info_map.count(raw_content) > 0
+                ? categorical_info_map[raw_content]
+                : raw_content;
+
+        final_dataset << content;
+
+        j++;
+      }
+
+      final_dataset << std::endl;
+
+      i++;
+    }
+
+    final_dataset.close();
+  } else {
+    std::cout << "Could not open provided file name: \"" << final_dataset_name
+              << "\"." << std::endl;
+    exit(1);
   }
 }
