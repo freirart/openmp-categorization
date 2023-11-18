@@ -192,7 +192,7 @@ void update_categorical_dict() {
 }
 
 void write_dict_files() {
-  for (auto&& category_info : categorical_dict) {
+  for (auto category_info : categorical_dict) {
     auto category_file_name = category_info.first;
     auto category_values = category_info.second;
 
