@@ -25,7 +25,7 @@ std::vector<std::vector<std::string>> categorical_info_per_line;
 std::fstream dataset_to_read;
 
 // Constante que indica o número de linhas lidas por laço
-int MAX_LINES_READ_PER_LOOP = 10000;
+const int MAX_LINES_READ_PER_LOOP = 10000;
 
 // Variável de controle que indica se a leitura do arquivo chegou ao final
 bool concluded_reading_file = false;
@@ -37,7 +37,7 @@ std::string final_dataset_name = "final_dataset.csv";
 std::ofstream final_dataset;
 
 // Nome das colunas categóricas
-std::vector<std::string> category_names{
+const static std::vector<std::string> category_names{
     "cdtup.csv",         "berco.csv",        "portoatracacao.csv",
     "mes.csv",           "tipooperacao.csv", "tiponavegacaoatracacao.csv",
     "terminal.csv",      "origem.csv",       "destino.csv",
@@ -47,7 +47,7 @@ std::vector<std::string> category_names{
 std::vector<int> category_indexes{1, 2, 3, 5, 6, 7, 8, 17, 18, 20, 23};
 
 // Dicionário de cada coluna categórica
-std::map<std::string, std::vector<std::string>> categorical_dict;
+static std::map<std::string, std::vector<std::string>> categorical_dict;
 
 // Dicionário que conterá informações categóricas e seus id para
 // checagem rápida se a informação lida do arquivo é categórica
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
 }
 
 void clean_existing_files() {
-  for (auto category_name : category_names) {
+  for (auto& category_name : category_names) {
     std::remove(category_name.c_str());
   }
 
@@ -119,7 +119,7 @@ void clean_existing_files() {
 }
 
 void initialize_dict() {
-  for (auto category_name : category_names) {
+  for (auto& category_name : category_names) {
     categorical_dict[category_name] = std::vector<std::string>();
   }
 }
@@ -194,7 +194,7 @@ void update_categorical_dict() {
 }
 
 void write_dict_files() {
-  for (auto category_info : categorical_dict) {
+  for (auto&& category_info : categorical_dict) {
     auto category_file_name = category_info.first;
     auto category_values = category_info.second;
 
