@@ -49,6 +49,8 @@ std::vector<int> category_indexes{1, 2, 3, 5, 6, 7, 8, 17, 18, 20, 23};
 // Dicionário de cada coluna categórica
 std::map<std::string, std::vector<std::string>> categorical_dict;
 
+// Dicionário que conterá informações categóricas e seus id para
+// checagem rápida se a informação lida do arquivo é categórica
 std::map<std::string, std::string> categorical_info_map;
 
 void clean_existing_files();
