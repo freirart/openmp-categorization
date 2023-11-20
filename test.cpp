@@ -8,4 +8,6 @@ int main() {
     printf("> Número de threads utilizados na região paralela: %d.\n",
            omp_get_num_threads());
   }
+
+  return 0;
 }
